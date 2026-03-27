@@ -92,7 +92,7 @@ Examples:
   ./moonlight_build.sh --device heat --symbol-crc remap_pfn_range=a5447b97
   ./moonlight_build.sh --device fire --variant kernelsu --jobs 16 --llvm-ias 0
   ./moonlight_build.sh --device both --variant vanilla --clean
-  ./moonlight_build.sh --device universal --profile kernelsu --variant kernelsu-universal
+  ./moonlight_build.sh --device universal --profile susfs --variant susfs-universal
 EOF
 }
 
@@ -126,6 +126,13 @@ Available profiles:
       localversion=-perf-g5431a848c102
       symbol-crc remap_pfn_range=a5447b97
       fragment packaging/config-fragments/kernelsu.config
+  susfs
+    Shared heat/fire preset for SUsFS builds on stock MIUI vendor.
+    Applies:
+      localversion=-perf-g5431a848c102
+      symbol-crc remap_pfn_range=a5447b97
+      fragment packaging/config-fragments/kernelsu.config
+      fragment packaging/config-fragments/susfs.config
 EOF
 }
 
@@ -501,6 +508,14 @@ resolve_profile_for_device() {
       append_unique out_symbol_crcs "remap_pfn_range=a5447b97"
       append_unique out_fragments "$(resolve_existing_file "packaging/config-fragments/kernelsu.config")"
       ;;
+    susfs)
+      if [[ -z "$out_localversion" ]]; then
+        out_localversion="-perf-g5431a848c102"
+      fi
+      append_unique out_symbol_crcs "remap_pfn_range=a5447b97"
+      append_unique out_fragments "$(resolve_existing_file "packaging/config-fragments/kernelsu.config")"
+      append_unique out_fragments "$(resolve_existing_file "packaging/config-fragments/susfs.config")"
+      ;;
     *)
       die "unsupported profile: $PROFILE"
       ;;
@@ -746,7 +761,7 @@ parse_args() {
     [[ "$spec" =~ ^[A-Za-z0-9_]+=[A-Fa-f0-9]{8}$ ]] || die "invalid --symbol-crc format: $spec"
   done
 
-  if [[ "$PROFILE" != "vanilla" && "$PROFILE" != "miui-stock" && "$PROFILE" != "nethunter" && "$PROFILE" != "kernelsu" ]]; then
+  if [[ "$PROFILE" != "vanilla" && "$PROFILE" != "miui-stock" && "$PROFILE" != "nethunter" && "$PROFILE" != "kernelsu" && "$PROFILE" != "susfs" ]]; then
     die "unsupported profile: $PROFILE"
   fi
 

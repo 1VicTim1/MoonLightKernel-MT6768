@@ -1644,6 +1644,32 @@ static inline bool may_mandlock(void)
  * unixes. Our API is identical to OSF/1 to avoid making a mess of AMD
  */
 
+int path_umount(struct path *path, int flags)
+{
+	struct mount *mnt;
+	int retval;
+
+	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
+		return -EINVAL;
+
+	if (!may_mount())
+		return -EPERM;
+
+	mnt = real_mount(path->mnt);
+	retval = -EINVAL;
+	if (path->dentry != path->mnt->mnt_root)
+		return retval;
+	if (!check_mnt(mnt))
+		return retval;
+	if (mnt->mnt.mnt_flags & MNT_LOCKED)
+		return retval;
+	retval = -EPERM;
+	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
+		return retval;
+
+	return do_umount(mnt, flags);
+}
+
 int ksys_umount(char __user *name, int flags)
 {
 	struct path path;
