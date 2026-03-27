@@ -82,8 +82,7 @@ void *mtk_vcu_set_buffer(struct mtk_vcu_queue *vcu_queue,
 	unsigned int buffer;
 	dma_addr_t *dma_addr = NULL;
 	struct dma_buf *dbuf = NULL;
-	int op;
-
+	int op __maybe_unused;
 	pr_debug("[%s] %d iova = %llx src_vb = %p dst_vb = %p\n",
 		__func__, vcu_queue->num_buffers, mem_buff_data->iova,
 		src_vb, dst_vb);
@@ -445,4 +444,3 @@ int vcu_buffer_cache_sync(struct device *dev, struct mtk_vcu_queue *vcu_queue,
 
 	return -1;
 }
-

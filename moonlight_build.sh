@@ -52,10 +52,10 @@ log() {
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") --device <heat|fire|both> [options]
+Usage: $(basename "$0") --device <heat|fire|both|universal> [options]
 
 Options:
-  --device <name>         Target device: heat, fire, both
+  --device <name>         Target device: heat, fire, both, universal
   --profile <name>        Build preset (default: ${DEFAULT_PROFILE})
   --variant <name>        Build label used in package naming (default: ${DEFAULT_VARIANT})
   --defconfig <name>      Override defconfig for all selected devices
@@ -92,6 +92,7 @@ Examples:
   ./moonlight_build.sh --device heat --symbol-crc remap_pfn_range=a5447b97
   ./moonlight_build.sh --device fire --variant kernelsu --jobs 16 --llvm-ias 0
   ./moonlight_build.sh --device both --variant vanilla --clean
+  ./moonlight_build.sh --device universal --profile susfs --variant susfs-universal
 EOF
 }
 
@@ -124,7 +125,7 @@ EOF
 
 device_defconfig() {
   case "$1" in
-    heat|fire) echo "moonlight_mt6768_defconfig" ;;
+    heat|fire|universal) echo "moonlight_mt6768_defconfig" ;;
     *) die "unsupported device: $1" ;;
   esac
 }
@@ -133,6 +134,7 @@ device_config_fragment() {
   case "$1" in
     heat) echo "$(resolve_existing_file "packaging/config-fragments/device-heat.config")" ;;
     fire) echo "$(resolve_existing_file "packaging/config-fragments/device-fire.config")" ;;
+    universal) echo "$(resolve_existing_file "packaging/config-fragments/device-universal.config")" ;;
     *) die "unsupported device: $1" ;;
   esac
 }
@@ -147,7 +149,7 @@ resolve_defconfig() {
 
 device_list() {
   case "$DEVICE" in
-    heat|fire) echo "$DEVICE" ;;
+    heat|fire|universal) echo "$DEVICE" ;;
     both) echo "heat fire" ;;
     *) die "unsupported device: $DEVICE" ;;
   esac
@@ -364,19 +366,50 @@ apply_symbol_crc_overrides() {
   local image_path="$out_dir/arch/arm64/boot/Image"
   local image_gz_path="$out_dir/arch/arm64/boot/Image.gz"
   local image_gz_dtb_path="$out_dir/arch/arm64/boot/Image.gz-dtb"
-  local dtb_path="$out_dir/arch/arm64/boot/dts/mediatek/${device}.dtb"
   local symvers_path="$out_dir/Module.symvers"
+  local -a dtb_paths=()
 
   if [[ "${#symbol_crc_overrides[@]}" -eq 0 ]]; then
     return
   fi
 
   [[ -f "$image_path" ]] || die "missing Image for CRC override: $image_path"
-  [[ -f "$dtb_path" ]] || die "missing DTB for CRC override: $dtb_path"
   [[ -f "$symvers_path" ]] || die "missing Module.symvers for CRC override: $symvers_path"
 
-  log "CRC" "applying ${#symbol_crc_overrides[@]} symbol override(s)"
-  python3 - "$image_path" "$image_gz_path" "$image_gz_dtb_path" "$dtb_path" "$symvers_path" "${symbol_crc_overrides[@]}" <<'PY'
+  mapfile -t dtb_paths < <(python3 - "$out_dir/.config" "$out_dir/arch/arm64/boot/dts" <<'PY'
+from pathlib import Path
+import sys
+
+config_path = Path(sys.argv[1])
+dts_root = Path(sys.argv[2])
+raw_names = None
+for line in config_path.read_text().splitlines():
+    if line.startswith('CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES='):
+        raw_names = line.split('=', 1)[1].strip()
+        break
+
+if raw_names is None:
+    raise SystemExit('missing CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES in config')
+
+if raw_names.startswith('"') and raw_names.endswith('"'):
+    raw_names = raw_names[1:-1]
+
+names = [name for name in raw_names.split() if name]
+if not names:
+    raise SystemExit('no DTB names found in CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES')
+
+for name in names:
+    print(dts_root / f'{name}.dtb')
+PY
+)
+
+  [[ "${#dtb_paths[@]}" -gt 0 ]] || die "no DTBs resolved for CRC override"
+  for dtb_path in "${dtb_paths[@]}"; do
+    [[ -f "$dtb_path" ]] || die "missing DTB for CRC override: $dtb_path"
+  done
+
+  log "CRC" "applying ${#symbol_crc_overrides[@]} symbol override(s) for ${device} (${#dtb_paths[@]} dtb)"
+  python3 - "$image_path" "$image_gz_path" "$image_gz_dtb_path" "$symvers_path" "${dtb_paths[@]}" -- "${symbol_crc_overrides[@]}" <<'PY'
 import gzip
 from pathlib import Path
 import sys
@@ -384,14 +417,16 @@ import sys
 image_path = Path(sys.argv[1])
 image_gz_path = Path(sys.argv[2])
 image_gz_dtb_path = Path(sys.argv[3])
-dtb_path = Path(sys.argv[4])
-symvers_path = Path(sys.argv[5])
-specs = sys.argv[6:]
+symvers_path = Path(sys.argv[4])
+args = sys.argv[5:]
+sep = args.index('--')
+dtb_paths = [Path(p) for p in args[:sep]]
+specs = args[sep + 1:]
 
 sym_lines = symvers_path.read_text().splitlines()
 sym_index = {}
 for idx, line in enumerate(sym_lines):
-    parts = line.split("\t")
+    parts = line.split("	")
     if len(parts) >= 4:
         sym_index[parts[1]] = (idx, parts)
 
@@ -414,20 +449,19 @@ for spec in specs:
 
     count = image.count(old_bytes)
     if count != 1:
-      raise SystemExit(f"{name}: expected exactly one old CRC occurrence in Image, got {count}")
+        raise SystemExit(f"{name}: expected exactly one old CRC occurrence in Image, got {count}")
 
     image = image.replace(old_bytes, new_bytes, 1)
     parts[0] = f"0x{new_crc_text.lower()}"
-    sym_lines[idx] = "\t".join(parts)
+    sym_lines[idx] = "	".join(parts)
 
 image_path.write_bytes(image)
 with gzip.open(image_gz_path, "wb", compresslevel=9) as fh:
     fh.write(image)
-image_gz_dtb_path.write_bytes(image_gz_path.read_bytes() + dtb_path.read_bytes())
+image_gz_dtb_path.write_bytes(image_gz_path.read_bytes() + b"".join(path.read_bytes() for path in dtb_paths))
 symvers_path.write_text("\n".join(sym_lines) + "\n")
 PY
 }
-
 resolve_profile_for_device() {
   local device="$1"
   local -n out_localversion="$2"
@@ -467,22 +501,20 @@ render_anykernel_script() {
   local variant="$3"
   local kernel_string="${PROJECT_NAME} ${device} ${variant}"
   local message_word="${device}-${variant}"
+  local device_name1="$device"
+  local device_name2="$device"
+
+  if [[ "$device" == "universal" ]]; then
+    kernel_string="${PROJECT_NAME} heat+fire ${variant}"
+    message_word="heat-fire-${variant}"
+    device_name1="heat"
+    device_name2="fire"
+  fi
 
   [[ -f "$template" ]] || die "missing AnyKernel template: $template"
 
-  sed \
-    -e "s|__KERNEL_STRING__|${kernel_string}|g" \
-    -e "s|__KERNEL_COMPILER__|${COMPILER_STRING}|g" \
-    -e "s|__KERNEL_MADE__|${MAINTAINER}|g" \
-    -e "s|__MESSAGE_WORD__|${message_word}|g" \
-    -e "s|__DEVICE_NAME1__|${device}|g" \
-    -e "s|__DEVICE_NAME2__|${device}|g" \
-    -e "s|__SUPPORTED_VERSIONS__|${SUPPORTED_VERSIONS}|g" \
-    -e "s|__PROJECT_NAME__|${PROJECT_NAME}|g" \
-    -e "s|__VARIANT__|${variant}|g" \
-    "$template" > "$target"
+  sed     -e "s|__KERNEL_STRING__|${kernel_string}|g"     -e "s|__KERNEL_COMPILER__|${COMPILER_STRING}|g"     -e "s|__KERNEL_MADE__|${MAINTAINER}|g"     -e "s|__MESSAGE_WORD__|${message_word}|g"     -e "s|__DEVICE_NAME1__|${device_name1}|g"     -e "s|__DEVICE_NAME2__|${device_name2}|g"     -e "s|__SUPPORTED_VERSIONS__|${SUPPORTED_VERSIONS}|g"     -e "s|__PROJECT_NAME__|${PROJECT_NAME}|g"     -e "s|__VARIANT__|${variant}|g"     "$template" > "$target"
 }
-
 package_anykernel() {
   local device="$1"
   local variant="$2"

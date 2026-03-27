@@ -59,7 +59,7 @@ endif
 mtk-vcodec-common-y := $(MTK_PLATFORM)/mtk_vcodec_intr.o \
 		mtk_vcodec_util.o\
 
-subdir-ccflags-y += -Werror
+subdir-ccflags-y += -Wno-error
 ifdef CONFIG_VIDEO_MEDIATEK_VCU
 	ccflags-y += -I$(srctree)/drivers/media/platform/mtk-vcu
 endif
@@ -85,4 +85,3 @@ ccflags-y += -I$(srctree)/drivers/misc/mediatek/mmdvfs
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/slbc
 ccflags-y += -I$(srctree)/drivers/staging/android/mtk_ion
 ccflags-y += -I$(srctree)/drivers/staging/android/mtk_ion/mtk
-

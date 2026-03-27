@@ -21,4 +21,5 @@ Guidelines:
 - current fragments:
   - `device-heat.config`: sets the appended DTB target to `mediatek/heat`
   - `device-fire.config`: sets the appended DTB target to `mediatek/fire`
+  - `device-universal.config`: sets the appended DTB targets to both `mediatek/heat` and `mediatek/fire`
   - `nethunter.config`: USB monitor, USB/IP, mac80211, cfg80211 debugfs, and external Bluetooth adapter support for the stock-MIUI NetHunter profile
