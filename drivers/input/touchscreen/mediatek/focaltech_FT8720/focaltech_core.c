@@ -1626,6 +1626,10 @@ static void fts_suspend_work(struct work_struct *work)
 int fts_suspend(void)
 {
     FTS_INFO("fts_suspend start\n");
+    if (!fts_data || !fts_data->ts_workqueue) {
+        FTS_ERROR("skip suspend: touch driver not ready");
+        return -ENODEV;
+    }
     queue_work(fts_data->ts_workqueue, &fts_data->suspend_work);
     FTS_INFO("fts_suspend end\n");
     return 0;
@@ -1634,6 +1638,10 @@ int fts_suspend(void)
 int fts_resume(void)
 {
     FTS_INFO("resume start\n");
+    if (!fts_data || !fts_data->ts_workqueue) {
+        FTS_ERROR("skip resume: touch driver not ready");
+        return -ENODEV;
+    }
     queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
     FTS_INFO("resume end\n");
     return 0;
@@ -1981,6 +1989,14 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
     if (ts_data->ts_workqueue) {
         INIT_WORK(&ts_data->suspend_work, fts_suspend_work);
     }
+
+    /*
+     * Heat boots with the panel already alive, but the touch controller can
+     * still be left in an undefined state if the earlier LCM callback ran
+     * before probe. Recover the controller once probe completes.
+     */
+    fts_tp_state_recovery(ts_data);
+    fts_release_all_finger();
 
 #if defined(CONFIG_PM) && FTS_PATCH_COMERR_PM
     init_completion(&ts_data->pm_completion);
@@ -2715,6 +2731,7 @@ static int __init fts_ts_init(void)
     
     if (IS_ERR_OR_NULL(mtkfb_lcm_name)){
         FTS_ERROR("mtkfb_lcm_name ERROR!\n");
+        return -ENODEV;
     } else {
         if (strcmp(mtkfb_lcm_name, "dsi_panel_m19a_42_03_0b_dsc_vdo_lcm_drv") == 0 ||
             strcmp(mtkfb_lcm_name, "dsi_panel_m19a_42_03_0c_dsc_vdo_lcm_drv") == 0 ||
@@ -2723,6 +2740,7 @@ static int __init fts_ts_init(void)
         } else {
             FTS_ERROR("Unknow Touch\n");
             FTS_ERROR("TP name: %s\n", mtkfb_lcm_name);
+            return -ENODEV;
         }
     }
 #if FTS_PSENSOR_EN

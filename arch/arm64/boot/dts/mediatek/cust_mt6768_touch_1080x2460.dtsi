@@ -85,16 +85,16 @@
 
 &spi2 {
 	status = "ok";
-	/* Novatek device tree node */
-	novatek@1 {
-		compatible = "novatek,NVT-ts-spi","focaltech,fts";
+	/* FocalTech device tree node */
+	focaltech@0 {
+		compatible = "focaltech,fts";
 		reg = <0>; //Same as CS ID
 		status = "ok";
 		spi-max-frequency = <9600000>;	//4800000,9600000,15000000,19200000
 		novatek,reset-gpio = <&pio 22 0x00>;
 		novatek,irq-gpio = <&pio 2 0x2001>;
 		interrupt-parent = <&pio>;
-                interrupts = <1 0x2>;
+                interrupts = <2 0x2>;
                 focaltech,reset-gpio = <&pio 22 0x00>;
                 focaltech,irq-gpio = <&pio 2 0x2001>;
                 focaltech,max-touch-number = <10>;
@@ -932,4 +932,3 @@
 		};
 	};
 };
-

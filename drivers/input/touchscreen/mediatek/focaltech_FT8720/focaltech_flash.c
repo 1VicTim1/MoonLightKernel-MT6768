@@ -92,6 +92,7 @@ struct upgrade_setting_nf upgrade_setting_list[] = {
     {0x86, 0x32, 0, (64 * 1024),  (128 * 1024), 0xA5, 0x01, 12, 0, 1, 0, 0, 0},
     {0x86, 0x42, 0, (64 * 1024),  (128 * 1024), 0xA5, 0x01, 12, 0, 1, 0, 0, 0},
     {0x87, 0x20, 0, (88 * 1024),  (128 * 1024), 0xA5, 0x01, 8,  0, 2, 0, 1, 0},
+    {0x87, 0x25, 0, (88 * 1024),  (128 * 1024), 0xA5, 0x01, 8,  0, 2, 0, 1, 0},
     {0x87, 0x22, 0, (88 * 1024),  (128 * 1024), 0xA5, 0x01, 8,  0, 2, 0, 1, 0},
     {0x82, 0x01, 0, (96 * 1024),  (128 * 1024), 0xA5, 0x01, 8,  0, 2, 0, 0, 0},
     {0xF0, 0xC6, 0, (84 * 1024),  (128 * 1024), 0xA5, 0x01, 8,  0, 2, 0, 1, 0},
@@ -1075,6 +1076,10 @@ int fts_enter_normal_fw(void)
 
 static void fts_fwres_work(struct work_struct *work)
 {
+    if (!fts_data || !fts_data->ts_workqueue) {
+        FTS_ERROR("skip fwresume: touch driver not ready");
+        return;
+    }
     FTS_INFO("call.");
     fts_enter_normal_fw();
 }
@@ -1082,6 +1087,10 @@ static void fts_fwres_work(struct work_struct *work)
 /*For LCD driver call*/
 void fts_fwresume_work(void)
 {
+    if (!fts_data || !fts_data->ts_workqueue) {
+        FTS_ERROR("skip fwresume: touch driver not ready");
+        return;
+    }
     FTS_INFO("call.");
     queue_work(fts_data->ts_workqueue, &fts_data->fwres_work);
 }

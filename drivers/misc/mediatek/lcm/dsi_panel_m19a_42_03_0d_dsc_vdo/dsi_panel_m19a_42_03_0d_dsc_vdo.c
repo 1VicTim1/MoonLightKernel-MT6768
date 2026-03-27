@@ -127,9 +127,9 @@ struct LCM_setting_table {
 
 static struct LCM_setting_table lcm_suspend_dstb_setting[] = {
 	{0x00, 1, {0x00}},
-	{0xFF, 3, {0x87, 0x20, 0x01}},
+	{0xFF, 3, {0x87, 0x25, 0x01}},
 	{0x00, 1, {0x80}},
-	{0xFF, 2, {0x87, 0x20}},
+	{0xFF, 2, {0x87, 0x25}},
 
 	{0x28, 0, {}},
 	{REGFLAG_DELAY, 35, {}},
@@ -143,15 +143,19 @@ static struct LCM_setting_table lcm_suspend_dstb_setting[] = {
 	//cmd2 disable
 	{0x00, 1, {0x00}},
 	{0xFF, 3, {0xFF, 0xFF, 0xFF}},
-	{REGFLAG_DELAY, 10, {}}
+	{REGFLAG_DELAY, 10, {}},
+	{0x55, 1, {0x00}},
+	{REGFLAG_END_OF_TABLE, 0x00, {}},
+	{0x51, 2, {0xFF, 0x07}},
+	{REGFLAG_END_OF_TABLE, 0x00, {}}
 };
 
 static struct LCM_setting_table init_setting_vdo[] = {
 	{0x00, 1, {0x00}},
-	{0xFF, 3, {0x87, 0x20, 0x01}},
+	{0xFF, 3, {0x87, 0x25, 0x01}},
 
 	{0x00, 1, {0x80}},
-	{0xFF, 2, {0x87, 0x20}},
+	{0xFF, 2, {0x87, 0x25}},
 
 	{0x00, 1, {0xB0}},
 	{0xB4, 14, {0x00, 0x14, 0x02, 0x00, 0x01, 0xE8, 0x00, 0x07, 0x05, 0x0E, 0x05, 0x16, 0x10, 0xF0}},
@@ -172,32 +176,38 @@ static struct LCM_setting_table init_setting_vdo[] = {
 	{0x00, 1, {0x82}},
 	{0xCE, 2, {0x27,0x27}},
 
-	{0x00, 1, {0x81}},
-	{0xC0, 1, {0x56}},
+	{0x00, 1, {0x83}},
+	{0xC0, 3, {0x18, 0x00, 0x10}},
 
-	{0x00, 1, {0x91}},
-	{0xC0, 1, {0x56}},
+	{0x00, 1, {0x93}},
+	{0xC0, 3, {0x18, 0x00, 0x10}},
 
-	{0x00, 1, {0x61}},
-	{0xC0, 1, {0x9C}},
+	{0x00, 1, {0xA3}},
+	{0xC0, 3, {0x18, 0x00, 0x10}},
+
+	{0x00, 1, {0x73}},
+	{0xC0, 3, {0x18, 0x00, 0x10}},
 
 	{0x00, 1, {0xA4}},
-	{0xC1, 1, {0x70}},
+	{0xC1, 1, {0x6C}},
 
 	{0x00, 1, {0x85}},
-	{0xCE, 1, {0xD8}},
+	{0xCE, 1, {0xE0}},
 
 	{0x00, 1, {0x9A}},
-	{0xCE, 4, {0x0E,0x10,0x03,0x0D}},
-
-	{0x00, 1, {0xE1}},
-	{0xCE, 1, {0x0A}},
+	{0xCE, 3, {0x0C, 0x1C, 0x03}},
 
 	{0x00, 1, {0xB2}},
-	{0xCF, 2, {0xB8,0xBC}},
+	{0xCF, 2, {0xD9, 0xDD}},
 
 	{0x00, 1, {0xB7}},
-	{0xCF, 2, {0x28,0x2C}},
+	{0xCF, 2, {0x4D, 0x51}},
+
+	{0x00, 1, {0xE4}},
+	{0xCF, 12, {0x0A, 0x18, 0x0A, 0x17, 0x0A, 0x17, 0x0A, 0x17, 0x0A, 0x17, 0x0A, 0x17}},
+
+	{0x00, 1, {0x0E}},
+	{0xF3, 2, {0x80, 0xFF}},
 
 	//cmd2 disable
 	{0x00, 1, {0x00}},
@@ -282,40 +292,10 @@ static void lcm_set_util_funcs(const struct LCM_UTIL_FUNCS *util)
 #ifdef CONFIG_MTK_HIGH_FRAME_RATE
 static void lcm_dfps_int(struct LCM_DSI_PARAMS *dsi)
 {
-	struct dfps_info *dfps_params = dsi->dfps_params;
-
-	dsi->dfps_enable = 1;
-	dsi->dfps_default_fps = 6000;/*real fps * 100, to support float*/
-	dsi->dfps_def_vact_tim_fps = 9000;/*real vact timing fps * 100*/
-
-	/* traversing array must less than DFPS_LEVELS */
-	/* DPFS_LEVEL0 */
-	dfps_params[0].level = DFPS_LEVEL0;
-	dfps_params[0].fps = 6000;/*real fps * 100, to support float*/
-	dfps_params[0].vact_timing_fps = 9000;/*real vact timing fps * 100*/
-	dfps_params[0].vertical_frontporch = 1248;
-	dfps_params[0].vertical_frontporch_for_low_power = 2200;
-
-	/* DPFS_LEVEL1 */
-	dfps_params[1].level = DFPS_LEVEL1;
-	dfps_params[1].fps = 9000;/*real fps * 100, to support float*/
-	dfps_params[1].vact_timing_fps = 9000;/*real vact timing fps * 100*/
-	dfps_params[1].vertical_frontporch = 10;
-	dfps_params[1].vertical_frontporch_for_low_power = 2200;
-
-	/* DPFS_LEVEL2 */
-	dfps_params[2].level = DFPS_LEVEL2;
-	dfps_params[2].fps = 4800;/*real fps * 100, to support float*/
-	dfps_params[2].vact_timing_fps = 9000;/*real vact timing fps * 100*/
-	dfps_params[2].vertical_frontporch = 2200;
-
-	/* DPFS_LEVEL3 */
-	dfps_params[3].level = DFPS_LEVEL3;
-	dfps_params[3].fps = 3600;/*real fps * 100, to support float*/
-	dfps_params[3].vact_timing_fps = 9000;/*real vact timing fps * 100*/
-	dfps_params[3].vertical_frontporch = 3750;
-
-	dsi->dfps_num = 4;
+	dsi->dfps_enable = 0;
+	dsi->dfps_default_fps = 6000;
+	dsi->dfps_def_vact_tim_fps = 6000;
+	dsi->dfps_num = 0;
 }
 #endif
 
@@ -337,7 +317,7 @@ static void lcm_get_params(struct LCM_PARAMS *params)
 	params->density = LCM_DENSITY;
 
 	params->dsi.mode = SYNC_PULSE_VDO_MODE;
-	params->dsi.switch_mode = CMD_MODE;
+	params->dsi.switch_mode = SYNC_PULSE_VDO_MODE;
 	//lcm_dsi_mode = SYNC_PULSE_VDO_MODE;
 	LCM_LOGI("%s: lcm_dsi_mode %d\n", __func__, lcm_dsi_mode);
 	params->dsi.switch_mode_enable = 0;
@@ -422,6 +402,9 @@ static void lcm_get_params(struct LCM_PARAMS *params)
 	params->dsi.lcm_esd_check_table[0].cmd = 0x0a;
 	params->dsi.lcm_esd_check_table[0].count = 1;
 	params->dsi.lcm_esd_check_table[0].para_list[0] = 0x9c;
+	params->dsi.dynamic_fps_levels = 0;
+	params->max_refresh_rate = 60;
+	params->min_refresh_rate = 60;
 
 	/* for ARR 2.0 */
 	// params->max_refresh_rate = 60;
@@ -479,7 +462,18 @@ static void lcm_resume_power(void)
 }
 
 extern int fts_resume(void);
-extern fts_fwresume_work(void);
+extern void fts_fwresume_work(void);
+static void lcm_resume_touch(void)
+{
+	if (tp_sensor_flag == 0) {
+		LCM_LOGI("[FT8720][%s]tp_sensor_flag = 0[%d]\n", __func__, __LINE__);
+		fts_fwresume_work();
+		MDELAY(5);
+	}
+	fts_resume();
+	MDELAY(10);
+}
+
 static void lcm_init(void)
 {
 	MDELAY(2);
@@ -489,23 +483,22 @@ static void lcm_init(void)
 	MDELAY(1);
 	SET_RESET_PIN(1);
 	MDELAY(12);
-	if(tp_sensor_flag == 0){
-		LCM_LOGI("[FT8720][%s]tp_sensor_flag = 0[%d]\n", __func__, __LINE__);
-		fts_fwresume_work();
-	}
-	fts_resume();
-	LCM_LOGI("[FT8720][%s][%d]\n", __func__, __LINE__);
 	push_table(NULL, init_setting_vdo, ARRAY_SIZE(init_setting_vdo), 1);
+	MDELAY(10);
+	lcm_resume_touch();
+	LCM_LOGI("[FT8720][%s][%d]\n", __func__, __LINE__);
 }
+
 extern int fts_suspend(void);
 static void lcm_suspend(void)
 {
 	LCM_LOGI("[FT8720][%s][%d]\n", __func__, __LINE__);
+	fts_suspend();
+	MDELAY(5);
 	if(tp_sensor_flag == 0) {
 		push_table(NULL, lcm_suspend_dstb_setting,
 			ARRAY_SIZE(lcm_suspend_dstb_setting), 1);
 	}
-	fts_suspend();
 }
 
 static void lcm_resume(void)
@@ -694,4 +687,3 @@ struct LCM_DRIVER dsi_panel_m19a_42_03_0d_dsc_vdo_lcm_drv = {
 	.esd_recover = lcd_esd_recover,
 
 };
-
