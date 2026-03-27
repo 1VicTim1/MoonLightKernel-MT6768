@@ -11,7 +11,7 @@ Default seeds:
 
 Intended use:
 - keep branch-specific config deltas small
-- share the same base defconfig between `vanilla`, `nethunter`, `kernelsu`, and `susfs`
+- share the same base defconfig between `vanilla`, `nethunter`, and `kernelsu`
 - keep device-specific deltas tiny and obvious
 
 Guidelines:
@@ -23,3 +23,4 @@ Guidelines:
   - `device-fire.config`: sets the appended DTB target to `mediatek/fire`
   - `device-universal.config`: sets the appended DTB targets to both `mediatek/heat` and `mediatek/fire`
   - `nethunter.config`: USB monitor, USB/IP, mac80211, cfg80211 debugfs, and external Bluetooth adapter support for the stock-MIUI NetHunter profile
+  - `kernelsu.config`: enables KernelSU on top of the shared stock-compatible base
