@@ -121,7 +121,7 @@ Available profiles:
       symbol-crc remap_pfn_range=a5447b97
       fragment packaging/config-fragments/nethunter.config
   kernelsu
-    Shared heat/fire preset for KernelSU builds on stock MIUI vendor.
+    Shared heat/fire preset for KernelSU Next builds on stock MIUI vendor.
     Applies:
       localversion=-perf-g5431a848c102
       symbol-crc remap_pfn_range=a5447b97
