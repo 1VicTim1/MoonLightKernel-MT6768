@@ -34,6 +34,54 @@ int _lcm_count(void)
 	return lcm_count;
 }
 
+static bool disp_lcm_name_missing(const char *plcm_name)
+{
+	return !plcm_name || plcm_name[0] == '\0';
+}
+
+static bool disp_lcm_skip_compare_id(struct LCM_DRIVER *lcm_drv)
+{
+	if (!lcm_drv || !lcm_drv->name)
+		return true;
+
+	/*
+	 * The virtual panel advertises compare_id() == 1 unconditionally,
+	 * which would break runtime panel detection on the unified one-DTB
+	 * build when LK does not provide a usable lcmname.
+	 */
+	if (!strcmp(lcm_drv->name, "virtual_dsi_vdo_default"))
+		return true;
+
+	return false;
+}
+
+static bool disp_lcm_probe_by_compare_id(struct LCM_DRIVER **matched_drv,
+	int *matched_index)
+{
+	int i;
+	struct LCM_DRIVER *lcm_drv = NULL;
+
+	for (i = 0; i < _lcm_count(); i++) {
+		lcm_drv = lcm_driver_list[i];
+		if (disp_lcm_skip_compare_id(lcm_drv))
+			continue;
+
+		if (!lcm_drv->compare_id)
+			continue;
+
+		DISPCHECK("compare_id probe: try %s\n", lcm_drv->name);
+		if (lcm_drv->compare_id()) {
+			*matched_drv = lcm_drv;
+			*matched_index = i;
+			DISPCHECK("compare_id probe: matched %s\n",
+				lcm_drv->name);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 int _is_lcm_inited(struct disp_lcm_handle *plcm)
 {
 	if (plcm) {
@@ -1077,7 +1125,7 @@ struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 		DISPERR("no lcm driver defined in linux kernel driver\n");
 		return NULL;
 	} else if (_lcm_count() == 1) {
-		if (plcm_name == NULL) {
+		if (disp_lcm_name_missing(plcm_name)) {
 			lcm_drv = lcm_driver_list[0];
 
 			isLCMFound = true;
@@ -1103,9 +1151,7 @@ struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 		}
 		lcmindex = 0;
 	} else {
-		if (plcm_name == NULL) {
-			/* TODO: we need to detect all the lcm driver */
-		} else {
+		if (!disp_lcm_name_missing(plcm_name)) {
 			int i = 0;
 
 			for (i = 0; i < _lcm_count(); i++) {
@@ -1118,15 +1164,21 @@ struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 				}
 			}
 			if (!isLCMFound) {
-				DISPERR(
-					"FATAL ERROR: can't found lcm driver:%s in linux kernel driver\n",
-				    plcm_name);
+				DISPERR("can't find lcm driver:%s in linux kernel driver, fallback to compare_id\n",
+					plcm_name);
 			} else if (!is_lcm_inited) {
 				isLCMInited = false;
 				DISPCHECK("LCM not init\n");
 			}
 		}
-		/* TODO: */
+
+		if (!isLCMFound && disp_lcm_probe_by_compare_id(&lcm_drv,
+			&lcmindex)) {
+			isLCMFound = true;
+			isLCMInited = is_lcm_inited ? true : false;
+			if (!is_lcm_inited)
+				DISPCHECK("LCM compare_id fallback selected, panel not init in LK\n");
+		}
 	}
 
 	if (isLCMFound == false) {
@@ -1976,4 +2028,3 @@ done:
 
 /*-------------------DynFPS end-----------------------------*/
 #endif
-
