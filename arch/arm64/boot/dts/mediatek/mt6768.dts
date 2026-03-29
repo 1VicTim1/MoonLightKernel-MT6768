@@ -4220,6 +4220,141 @@ defined(CONFIG_MTK_CAM_SECURITY_SUPPORT)
 	};
 };
 
+/* Shared heat/fire display support for the unified one-DTB build. */
+&pio {
+	mtkfb_pins_lcm_rst_out1_gpio: lcm_rst_out1_gpio {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO45__FUNC_GPIO45>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+
+	mtkfb_pins_lcm_rst_out0_gpio: lcm_rst_out0_gpio {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO45__FUNC_GPIO45>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+
+	mtkfb_pins_lcm_dsi_te: lcm_dsi_te {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO44__FUNC_DSI_TE>;
+		};
+	};
+
+	mtkfb_pins_6382_rst_out1_gpio: 6382_rst_out1_gpio {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO165__FUNC_GPIO165>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+
+	mtkfb_pins_6382_rst_out0_gpio: 6382_rst_out0_gpio {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO165__FUNC_GPIO165>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+
+	spislv_pins_default: spislv_mode_default {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO13__FUNC_SPI5_MI>,
+				<PINMUX_GPIO14__FUNC_SPI5_CSB>,
+				<PINMUX_GPIO15__FUNC_SPI5_MO>,
+				<PINMUX_GPIO16__FUNC_SPI5_CLK>;
+			drive-strength = <3>;
+		};
+	};
+};
+
+&mtkfb {
+	pinctrl-names =
+		"lcm_rst_out1_gpio", "lcm_rst_out0_gpio",
+		"mode_te_te", "6382_rst_out1_gpio", "6382_rst_out0_gpio";
+	pinctrl-0 = <&mtkfb_pins_lcm_rst_out1_gpio>;
+	pinctrl-1 = <&mtkfb_pins_lcm_rst_out0_gpio>;
+	pinctrl-2 = <&mtkfb_pins_lcm_dsi_te>;
+	pinctrl-3 = <&mtkfb_pins_6382_rst_out1_gpio>;
+	pinctrl-4 = <&mtkfb_pins_6382_rst_out0_gpio>;
+	status = "okay";
+};
+
+&spi5 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&spislv_pins_default>;
+	mediatek,kthread-rt = <1>;
+
+	spislv@0 {
+		compatible = "mediatek,spi_slave";
+		reg = <0>;
+		spi-max-frequency = <55000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <1>;
+		low-speed-tick-delay = /bits/ 8 <4>;
+		low-speed-early-trans = /bits/ 8 <0>;
+		high-speed-tick-delay = /bits/ 8 <2>;
+		high-speed-early-trans = /bits/ 8 <0>;
+		slave-drive-strength = /bits/ 8 <3>;
+	};
+};
+
+&i2c6 {
+	lm3697@36 {
+		compatible = "ti,lm3697";
+		reg = <0x36>;
+		status = "okay";
+		enable-gpios = <&pio 97 0>;
+
+		backlight {
+			compatible = "ti,lm3697-backlight";
+
+			lcd {
+				led-sources = <0 1 2>;
+				ramp-up-msec = <200>;
+				ramp-down-msec = <200>;
+				pwm-period = <0>;
+				default-brightness-level = <255>;
+			};
+		};
+
+		fault-monitor {
+			compatible = "ti,lm3697-fault-monitor";
+		};
+	};
+
+	ktd@37 {
+		compatible = "ktd,ktd3137";
+		reg = <0x37>;
+		status = "okay";
+		ktd,using-lsb = <1>;
+		ktd,pwm-frequency = <100>;
+		ktd,bl-fscal-led = <0x98>;
+		ktd,turn-on-ramp = <0>;
+		ktd,turn-off-ramp = <0>;
+		ktd,pwm-trans-dim = <0>;
+		ktd,i2c-trans-dim = <0>;
+		ktd,bl-channel = <2>;
+		ktd,ovp-level = <32>;
+		ktd,switching-frequency = <1000>;
+		ktd,inductor-current = <1800>;
+		ktd,linear_ramp = <1>;
+		ktd,linear_backlight = <1>;
+	};
+
+	lcd_bias@3e {
+		compatible = "mediatek,lcd_bias";
+		reg = <0x3e>;
+		status = "okay";
+	};
+};
+
 
 #include "mediatek/mt6358.dtsi"
 #include "mediatek/cust_mt6768_camera.dtsi"
